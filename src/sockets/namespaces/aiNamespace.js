@@ -1,37 +1,15 @@
-import geminiService from '../../services/aiService.js';
+import { aiHandler } from "../handlers/ai.handler.js";
 
-const setupAiNamespace = (io) => {
-  const nsp = io.of("/ai-assistant");
+export const setupAiNamespace = (io) => {
+  // Create AI namespace
+  // Local testing: http://localhost:5000/ai-realtime
+  // Production: https://yourdomain.com/ai-realtime
+  const aiNamespace = io.of("/ai-realtime");
 
-  nsp.on("connection", (socket) => {
-    console.log(`[AI-NSP] User connected: ${socket.id}`);
-    let aiSession = null;
-
-    socket.on("ai:initialize", async () => {
-      try {
-        aiSession = await geminiService.createLiveSession(
-          (data) => socket.emit("ai:output", data),
-          (err) => socket.emit("ai:error", err)
-        );
-        console.log(`[AI-NSP] Gemini Session Active for ${socket.id}`);
-      } catch (err) {
-        socket.emit("ai:error", { message: "Failed to initialize AI" });
-      }
-    });
-
-    // Forwarding user audio/text to Gemini
-    socket.on("ai:input", (payload) => {
-      if (aiSession) aiSession.send(payload);
-    });
-
-    // Clean up Gemini session when user disconnects
-    socket.on("disconnect", () => {
-      if (aiSession) {
-        aiSession.stop();
-        console.log(`[AI-NSP] Session closed for ${socket.id}`);
-      }
-    });
+  aiNamespace.on("connection", (socket) => {
+    console.log(`[AI-NSP] Connection established : ${socket.id}`);
+    // Handler for AI interactions
+    aiHandler(socket);
   });
-};
 
-export const setupAiAssistantNamespace = setupAiNamespace;
+};

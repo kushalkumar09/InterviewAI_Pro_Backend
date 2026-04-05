@@ -1,15 +1,16 @@
 import { Server } from "socket.io";
-import { setupAiAssistantNamespace } from "./namespaces/aiNamespace.js";
+import { setupAiNamespace } from "./namespaces/aiNamespace.js";
 
 let ioInstance;
 
 const socketConnection = (server) => {
-  ioInstance = new Server(server, {
+  const socketconfig = {
     cors: {
       origin: process.env.ALLOWED_ORIGINS || "*",
       methods: ["GET", "POST"]
     }
-  });
+  };
+  ioInstance = new Server(server, socketconfig);
 
   ioInstance.use((socket, next) => {
     const token = socket.handshake.auth.token;
@@ -17,11 +18,12 @@ const socketConnection = (server) => {
     return next(new Error("Authentication error"));
   });
 
-  setupAiAssistantNamespace(ioInstance);
+  setupAiNamespace(ioInstance);
 
-  console.log("--- SocketManager: Namespaces Initialized ---");
+  console.log("[Socket.IO] Server initialized");
   
-  return ioInstance; // <--- CRITICAL: Return this so server.js can close it
+  // return so that servers can access ioInstance for emitting outside of connection context
+  return ioInstance; 
 };
 
 export default socketConnection;
