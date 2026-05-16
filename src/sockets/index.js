@@ -12,7 +12,7 @@ const socketConnection = (server) => {
   };
   ioInstance = new Server(server, socketconfig);
 
-  ioInstance.use((socket, next) => {
+  ioInstance.of("/ai-realtime").use((socket, next) => {
     const token = socket.handshake.auth.token;
     if (token) return next();
     return next(new Error("Authentication error"));
