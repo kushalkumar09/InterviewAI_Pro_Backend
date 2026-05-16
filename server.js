@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import http from 'http';
-import app from './src/app.js'; // Note the .js extension
+import mongoose from 'mongoose';
+import app from './src/app.js';
 import connectDB from './src/config/db.js';
 import socketConnection from './src/sockets/index.js';
 
@@ -17,6 +18,7 @@ const startApp = async () => {
       console.log(`🚀 Server running on http://localhost:${PORT}`);
     });
   } catch (err) {
+    console.error(err);
     process.exit(1);
   }
 };
