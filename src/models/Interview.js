@@ -11,10 +11,11 @@ const InterviewSchema = new mongoose.Schema(
     resumeName: { type: String, default: "" },
     status: {
       type: String,
-      enum: ["draft", "ready", "completed"],
+      enum: ["draft", "ready", "in_progress", "completed"],
       default: "ready",
     },
     scheduledFor: { type: Date },
+    startedAt: { type: Date },
     completedAt: { type: Date },
   },
   { timestamps: true }
