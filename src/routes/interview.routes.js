@@ -1,19 +1,27 @@
 import express from "express";
+import multer from "multer";
 import { requireAuth } from "../middleware/auth.js";
 import Interview from "../models/Interview.js";
 import Report from "../models/Report.js";
 import { buildReportPayload } from "../services/reportService.js";
+import { parseResumeBuffer } from "../services/resumeParserService.js";
+import { buildAiJobInsights, buildAiResumeInsights } from "../services/aiInsightService.js";
+import { buildInterviewContext } from "../services/textInsightService.js";
 
 const router = express.Router();
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
+});
 
-const editableFields = ["role", "jobDescription", "difficulty", "focusAreas", "aiInstructions", "resumeName"];
+const editableFields = ["role", "jobDescription", "difficulty", "focusAreas", "aiInstructions"];
 const allowedSaveStatuses = ["draft", "ready"];
 
 const getInterviewForUser = (id, userId) => Interview.findOne({ _id: id, user: userId });
 
 router.post("/", requireAuth, async (req, res, next) => {
   try {
-    const { role, jobDescription, difficulty, focusAreas, aiInstructions, resumeName, status = "ready" } = req.body;
+    const { role, jobDescription, difficulty, focusAreas, aiInstructions, status = "ready" } = req.body;
     const cleanRole = role?.trim();
 
     if (!cleanRole) {
@@ -27,10 +35,10 @@ router.post("/", requireAuth, async (req, res, next) => {
       user: req.user._id,
       role: cleanRole,
       jobDescription,
+      jobInsights: await buildAiJobInsights(jobDescription, cleanRole),
       difficulty,
       focusAreas,
       aiInstructions,
-      resumeName,
       status,
     });
 
@@ -89,9 +97,42 @@ router.patch("/:id", requireAuth, async (req, res, next) => {
       return res.status(400).json({ message: "Target role is required" });
     }
     interview.role = interview.role.trim();
+    interview.jobInsights = await buildAiJobInsights(interview.jobDescription, interview.role);
 
     await interview.save();
     res.json({ interview });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post("/:id/resume", requireAuth, upload.single("resume"), async (req, res, next) => {
+  try {
+    const interview = await getInterviewForUser(req.params.id, req.user._id);
+    if (!interview) {
+      return res.status(404).json({ message: "Interview not found" });
+    }
+    if (!req.file) {
+      return res.status(400).json({ message: "Resume file is required" });
+    }
+
+    const extractedText = await parseResumeBuffer(req.file);
+    const insights = await buildAiResumeInsights(extractedText);
+
+    interview.resume = {
+      originalName: req.file.originalname,
+      mimeType: req.file.mimetype,
+      size: req.file.size,
+      uploadedAt: new Date(),
+      ...insights,
+    };
+
+    await interview.save();
+    res.json({
+      interview,
+      resume: interview.resume,
+      context: buildInterviewContext(interview),
+    });
   } catch (error) {
     next(error);
   }
