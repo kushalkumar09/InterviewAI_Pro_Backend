@@ -7,10 +7,11 @@ const router = express.Router();
 
 router.get("/", requireAuth, async (req, res, next) => {
   try {
-    const [reportsCount, reports, upcoming] = await Promise.all([
+    const [reportsCount, reports, upcoming, recentInterviews] = await Promise.all([
       Report.countDocuments({ user: req.user._id }),
       Report.find({ user: req.user._id }).sort({ createdAt: -1 }).limit(5),
-      Interview.find({ user: req.user._id, status: { $ne: "completed" } }).sort({ createdAt: -1 }).limit(4),
+      Interview.find({ user: req.user._id, status: { $in: ["draft", "ready", "in_progress"] } }).sort({ createdAt: -1 }).limit(4),
+      Interview.find({ user: req.user._id }).sort({ createdAt: -1 }).limit(20),
     ]);
 
     const topScore = reports.reduce((best, report) => Math.max(best, report.overallScore), 0);
@@ -31,6 +32,7 @@ router.get("/", requireAuth, async (req, res, next) => {
         averageScore,
       },
       upcoming,
+      recentInterviews,
       recentReports: reports,
     });
   } catch (error) {
